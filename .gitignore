@@ -1,0 +1,5 @@
+node_modules/
+migration/
+config/
+uploads/
+.gitignore

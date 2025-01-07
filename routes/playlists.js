@@ -56,4 +56,49 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
+router.get('/:playlistId', authMiddleware, async (req, res) => {
+  try {
+    const playlistId = req.params.playlistId;
+    const userId = req.user.id;
+
+    const playlist = await Playlist.findOne({
+      where: { id: playlistId, userId },
+      include: {
+        model: Song,
+        as: 'songs',
+        through: { attributes: [] }
+      }
+    });
+
+    if (!playlist) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+
+    res.status(200).json(playlist);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Share a playlist
+router.post('/:playlistId/share', authMiddleware, async (req, res) => {
+  try {
+    const playlistId = req.params.playlistId;
+    const userId = req.user.id;
+
+    const playlist = await Playlist.findOne({ where: { id: playlistId, userId } });
+    if (!playlist) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+
+    playlist.isPublic = true;
+    await playlist.save();
+    res.status(200).json(playlist);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+
 module.exports = router;

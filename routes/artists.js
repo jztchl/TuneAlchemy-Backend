@@ -36,4 +36,21 @@ router.get('/:artistId/songs', async (req, res) => {
   }
 });
 
+router.get('/search', async (req, res) => {
+    try {
+      const { query } = req.query;
+      const artists = await Artist.findAll({
+        where: {
+          name: {
+            [Op.iLike]: `%${query}%`
+          }
+        }
+      });
+      res.status(200).json(artists);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+
 module.exports = router;

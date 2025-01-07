@@ -65,4 +65,49 @@ router.get('/stream/:id', async (req, res) => {
   }
 });
 
+router.get('/search', async (req, res) => {
+  try {
+    const { query } = req.query;
+    const songs = await Song.findAll({
+      where: {
+        title: {
+          [Op.iLike]: `%${query}%`
+        }
+      },
+      include: {
+        model: Artist,
+        as: 'artist'
+      }
+    });
+    res.status(200).json(songs);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get song recommendations
+router.get('/recommendations', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userPlaylists = await Playlist.findAll({ where: { userId } });
+    const songIds = userPlaylists.map(playlist => playlist.songs.map(song => song.id)).flat();
+    const recommendedSongs = await Song.findAll({
+      where: {
+        id: {
+          [Op.notIn]: songIds
+        }
+      },
+      include: {
+        model: Artist,
+        as: 'artist'
+      },
+      limit: 10
+    });
+    res.status(200).json(recommendedSongs);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 module.exports = router;

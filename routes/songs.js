@@ -1,9 +1,10 @@
 const express = require('express');
 const multer = require('multer');
-const { Song, Artist } = require('../models');
+const { Song, Artist, RecentlyPlayed } = require('../models');
 const router = express.Router();
 const authMiddleware = require('../middlewares/auth');
 const adminMiddleware = require('../middlewares/admin');
+const { Op } = require('sequelize');
 
 // Set up multer for file uploads
 const storage = multer.diskStorage({
@@ -51,7 +52,7 @@ router.get('/', async (req, res) => {
 });
 
 // Stream a song
-router.get('/stream/:id', async (req, res) => {
+router.get('/stream/:id', authMiddleware, async (req, res) => {
   try {
     const song = await Song.findByPk(req.params.id);
     if (!song) {
@@ -59,55 +60,35 @@ router.get('/stream/:id', async (req, res) => {
     }
 
     const filePath = song.filePath;
-    res.sendFile(filePath, { root: './' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.get('/search', async (req, res) => {
-  try {
-    const { query } = req.query;
-    const songs = await Song.findAll({
-      where: {
-        title: {
-          [Op.iLike]: `%${query}%`
-        }
-      },
-      include: {
-        model: Artist,
-        as: 'artist'
+    res.sendFile(filePath, { root: './' }, (err) => {
+      if (err) {
+        console.error('Error sending file:', err);
+        res.status(500).json({ error: 'Error sending file' });
+      } else {
+        // Add to recently played
+        const userId = req.user.id;
+        RecentlyPlayed.create({ userId, songId: song.id })
+          .then(() => {
+            // Ensure only the last 5 songs are kept
+            return RecentlyPlayed.findAll({
+              where: { userId },
+              order: [['createdAt', 'DESC']],
+              limit: 5,
+            });
+          })
+          .then((recentlyPlayed) => {
+            return RecentlyPlayed.destroy({
+              where: { userId, id: { [Op.notIn]: recentlyPlayed.map(rp => rp.id) } }
+            });
+          })
+          .catch((error) => {
+            console.error('Error updating recently played:', error);
+          });
       }
     });
-    res.status(200).json(songs);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
-
-// Get song recommendations
-router.get('/recommendations', authMiddleware, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const userPlaylists = await Playlist.findAll({ where: { userId } });
-    const songIds = userPlaylists.map(playlist => playlist.songs.map(song => song.id)).flat();
-    const recommendedSongs = await Song.findAll({
-      where: {
-        id: {
-          [Op.notIn]: songIds
-        }
-      },
-      include: {
-        model: Artist,
-        as: 'artist'
-      },
-      limit: 10
-    });
-    res.status(200).json(recommendedSongs);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 
 module.exports = router;

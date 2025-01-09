@@ -4,6 +4,10 @@ module.exports = (sequelize, DataTypes) => {
       email: { type: DataTypes.STRING, allowNull: false, unique: true },
       password: { type: DataTypes.STRING, allowNull: false },
       role: { type: DataTypes.STRING, defaultValue: 'user' },
+      hoursListened: { type: DataTypes.FLOAT, defaultValue: 0 },
+      profilePicture: { type: DataTypes.STRING, allowNull: true },
+      bio: { type: DataTypes.TEXT, allowNull: true },
+      dateOfBirth: { type: DataTypes.DATE, allowNull: true },
     });
   
     User.associate = function(models) {

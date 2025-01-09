@@ -45,6 +45,30 @@ router.post('/:playlistId/songs', authMiddleware, async (req, res) => {
   }
 });
 
+// Remove a song from a playlist
+router.delete('/:playlistId/songs/:songId', authMiddleware, async (req, res) => {
+  try {
+    const playlistId = req.params.playlistId;
+    const songId = req.params.songId;
+    const userId = req.user.id;
+
+    const playlist = await Playlist.findOne({ where: { id: playlistId, userId } });
+    if (!playlist) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+
+    const song = await Song.findByPk(songId);
+    if (!song) {
+      return res.status(404).json({ error: 'Song not found' });
+    }
+
+    await playlist.removeSong(song);
+    res.status(204).send(); // No content
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get all playlists for a user
 router.get('/', authMiddleware, async (req, res) => {
   try {
@@ -56,6 +80,7 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
+// Get a specific playlist
 router.get('/:playlistId', authMiddleware, async (req, res) => {
   try {
     const playlistId = req.params.playlistId;
@@ -99,6 +124,22 @@ router.post('/:playlistId/share', authMiddleware, async (req, res) => {
   }
 });
 
+// Delete a playlist
+router.delete('/:playlistId', authMiddleware, async (req, res) => {
+  try {
+    const playlistId = req.params.playlistId;
+    const userId = req.user.id;
 
+    const playlist = await Playlist.findOne({ where: { id: playlistId, userId } });
+    if (!playlist) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+
+    await playlist.destroy();
+    res.status(204).send(); // No content
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 module.exports = router;
